@@ -90,6 +90,10 @@ void cXML_AddItemToNode(cXML *node,cXML *item){
     }
 }
 
+void cXML_AddValueToNode(cXML *node,char *value){
+    node->value = value;
+}
+
 static char *print_properties(entry property){
     char *out,*ptr;
     char *key = property.key;
@@ -112,6 +116,7 @@ static char *print_value(cXML *item,int fmt,int depth){
     char** properties;
     char *out = 0,*ptr,*ret;
     int name_len = strlen(item->name);
+    int value_len = 0;
     int len = (name_len + 2) * 2 + 1,i = 0,fail = 0;
     int numentries = 0;
     cXML *child = item->child;
@@ -143,15 +148,27 @@ static char *print_value(cXML *item,int fmt,int depth){
         numentries++;
         child = child->next;
     }
-    // 没有节点就打印<name></name>格式
+    // 没有子节点就打印<name></name>格式
+    // 没有子节点可能会有值
     if (!numentries)
     {
-        out = (char *) malloc(fmt ? len + depth + 1 : len);
+        if (item->value)
+        {
+            value_len = strlen(item->value);
+            len += value_len;
+        }
+        out = (char *) malloc(fmt ? len + depth : len);
         if (!out)
         {
             return 0;
         }
         ptr = out;
+        if (fmt)
+        {
+            for (i = 0;i < depth;i++){
+                *ptr++ = '\t';
+            }
+        }
         *ptr++ = '<';
         strcpy(ptr,item->name);
         ptr += name_len;
@@ -163,12 +180,10 @@ static char *print_value(cXML *item,int fmt,int depth){
             cXML_free(properties[i]);
         }
         *ptr++ = '>';
-        if (fmt)
+        if (item->value)
         {
-            *ptr++ = '\n';
-            for (i = 0;i < depth;i++){
-                *ptr++ = '\t';
-            }
+            memcpy(ptr,item->value,value_len);
+            ptr += value_len;
         }
         *ptr++ = '<';
         *ptr++ = '/';
@@ -191,7 +206,8 @@ static char *print_value(cXML *item,int fmt,int depth){
         entries[i++] = ret;
         if (ret)
         {
-            len += strlen(ret) + (fmt ? 1 : 0);
+            //如果格式化输出需要多一个\t
+            len += strlen(ret) + (fmt ? depth + 1 : 0);
         }else{
             fail = 1;
         }
@@ -228,12 +244,21 @@ static char *print_value(cXML *item,int fmt,int depth){
         cXML_free(properties[i]);
     }
     *ptr++ = '>';
+    if (fmt)
+    {
+        *ptr++ = '\n';
+    }
     *ptr = 0;
     for (int i = 0;i < numentries;i++){
+        
         tmplen = strlen(entries[i]);
         memcpy(ptr,entries[i],tmplen);
         ptr += tmplen;
         cXML_free(entries[i]);
+        if (fmt)
+        {
+            *ptr++ = '\n';
+        }
     }
     cXML_free(entries);
     *ptr++ = '<';
@@ -243,7 +268,6 @@ static char *print_value(cXML *item,int fmt,int depth){
     *ptr++ = '>';
     *ptr++ = 0;
     return out;
-    
 }
 
 char *cXML_Print(cXML *item){
@@ -252,4 +276,20 @@ char *cXML_Print(cXML *item){
         return 0;
     }
     return print_value(item,0,0);
+}
+
+char *cXML__PrintUnformatted(cXML *item){
+    if (!item)
+    {
+        return 0;
+    }
+    return print_value(item,1,0);
+}
+
+cXML* cXML_ParseWithOpts(const char *value,const char **return_parse_end,int require_null_terminated){
+    
+}
+
+cXML *cXML_Parse(const char *value){
+    return cXML_ParseWithOpts(value,0,0);
 }
